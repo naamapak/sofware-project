@@ -2,14 +2,7 @@
 # include <stdlib.h>
 # include <math.h>
 
-char* _get_input{
-    char last;
-    length = 0;
-    char* result;
-    while(last != '\n'){
-        
-    }
-}
+
 int _get_base(int kind) {
 /* Gets a base as input from the user. Using 's' for source base
 and 't' for target base in our program. Returns 0 for invalid base */
