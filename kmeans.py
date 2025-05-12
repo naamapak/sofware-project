@@ -1,5 +1,5 @@
 import math
-import argparse
+import sys
 
 class centroid:
     def __init__(self, vector, points = set()):
@@ -34,15 +34,9 @@ class datapoint:
         else:
             return math.sqrt(sum([(self.vector[i] - other.vector[i]) ** 2 for i in range(self.dimention)]))
 
-def parse_input(filename):
-    if not filename.endswith(".txt"):
-        print("Unexpected file type")
-        return None
-    else:
-        with open(filename, 'r') as f:
-            vectors = f.readlines()
-        vectors = [[float(d) for d in v.split(',')] for v in vectors]
-        all_points = [datapoint(v) for v in vectors]
+def parse_input(lines):
+    vectors = [[float(d) for d in v.split(',')] for v in lines]
+    all_points = [datapoint(v) for v in vectors]
     return all_points
 
 
@@ -61,27 +55,28 @@ def cluster(k, datapoints, iter = 400, epsilon = 0.001):
             c.update_vector()
     return centroids
 
-def main():
-    parser = argparse.ArgumentParser(description="Process input")
+def main(args, data):
+    if len(args) != 3:
+        print('Unexpected number of arguments')
+        return
 
-    parser.add_argument('--k', type=int, required=True, help='An integer value for k')
-    parser.add_argument('--iter', type=int, required=False, default=400, help='An integer value for iteration count')
-    parser.add_argument('filename', type=str, help='A text filename (e.g., filename.txt)')
+    k = int(args[1])
+    iter = int(args[2])
 
-    args = parser.parse_args()
-    
-    if args.iter > 1000 or args.iter < 1:
+    if iter > 1000 or iter < 1:
         print("Incorrect maximum iteration!")
         return
-    data = parse_input(args.filename)
-    if len(data) < args.k:
+
+    if len(data) < k:
         print("Incorrect number of clusters!")
         return
-    
-    clusters = cluster(args.k, data, args.iter)
+
+    data = parse_input(data)
+
+    clusters = cluster(k, data, iter)
     for c in clusters:
         print(",".join(['%.4f' % d for d in c.vector]))
     return
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv, sys.stdin.readlines())
