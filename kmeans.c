@@ -158,6 +158,7 @@ cluster* do_cluster(datapoint** data, int k, int iter){
         copy_vector(result[i].vector, data[i]->vector);
         result[i].points = malloc(sizeof(datapoint));
         result[i].points[0] = *data[i];
+        result[i].cluster_size = 1;
     }
     for(int i = 0; i < iter; i++){
         int converged = 1;
@@ -206,8 +207,8 @@ void main(){
     int iter;
     scanf("%d %d", &k, &iter);
     datapoint** data = _read_input(k);
-
     cluster* result = do_cluster(data, k, iter);
     free_data(data);
+    free_clusters(result, k);
 }
 
