@@ -28,14 +28,14 @@ double distance(datapoint* p, cluster* c){
     // CHANGED THE UCLIDIAN FUNC _ WAS + INSTEAD OF -
     double sum = 0;
     for(int i = 0; i < p->vector_size; i++){
-        sum += pow(p->vector[i] - c->vector[i], 2); //sum += pow(p->vector[i], 2) + pow(c->vector[i], 2);
+        sum += pow(p->vector[i] - c->vector[i], 2);
     };
     return sqrt(sum);
 }
 
 void copy_vector(cluster* dest, const datapoint* src) { // Used for creating the initial clusters
     dest->vector_size = src->vector_size;
-    dest->vector = malloc(src->vector_size * sizeof(double));
+    dest->vector = malloc(dest->vector_size * sizeof(double));
     if (!dest->vector) {
         perror("An Error Has Occured\n");
         exit(1);
@@ -51,7 +51,7 @@ datapoint** _read_input(){
     not null-terminating anything, keeping track of size in data_size
     Keeps sizes of each line */
     size_t prev_len;
-    datapoint** result = malloc(sizeof(datapoint));
+    datapoint** result = malloc(sizeof(datapoint*));
     double curr_d;
     char c = getchar();
     while(c == EOF || c == '\0' || c == ' '){
@@ -65,6 +65,7 @@ datapoint** _read_input(){
             char* current_num = malloc(sizeof(char));
             while(c != ',' && c != '\n'){ // Iterate over number
                 current_num[len] = c;
+                // printf("reallocating num\n");
                 current_num = realloc(current_num, (++len) * sizeof(char));
                 if(!current_num){
                     printf("An Error Has Occured\n");
@@ -75,8 +76,8 @@ datapoint** _read_input(){
             curr_d = strtod(current_num, NULL);
             free(current_num);
             line[line_len] = curr_d;
-            line_len++;
-            line = realloc(line, (line_len) * sizeof(double));
+            // printf("reallocating line\n");
+            line = realloc(line, (++line_len) * sizeof(double));
             if(c == '\n'){
                 break;
             }
@@ -95,7 +96,10 @@ datapoint** _read_input(){
     result[data_size] = p;
     data_size++;
     // CHANGED FROM EARLIER LINE: result = realloc(result, (data_size) * sizeof(datapoint)); - size of the pointer not the actual data_point
-    result = realloc(result, (data_size) * sizeof(datapoint*));
+    // printf("reallocating result: %ld \n", data_size);
+    if(data_size > 1){
+    result = realloc(result, sizeof(datapoint) * data_size);
+    }
     c = getchar();
     }
     return result;
@@ -115,8 +119,10 @@ void _remove_point(cluster* c, datapoint* p){
     for(index; index < c->cluster_size - 1; index ++){
         c->points[index] = c->points[index + 1];
     }
-    c->cluster_size--;
-    c->points = realloc(c->points, c->cluster_size * sizeof(datapoint));
+    if(c->cluster_size <= 1 || c->points == NULL){
+        c->points = malloc(sizeof(datapoint*));
+    } 
+    c->points = realloc(c->points, c->cluster_size * sizeof(datapoint*));
     return;
 }
 
@@ -128,7 +134,7 @@ void add_point(cluster* c, datapoint* p){ //void add_point(cluster c, datapoint 
         return;
     }
     if(p->centroid){
-        _remove_point(p->centroid, *p);
+        _remove_point(p->centroid, p);
     }
     c->points = realloc(c->points, (++c->cluster_size) * sizeof(datapoint));
     if(!c->points){
@@ -171,19 +177,26 @@ cluster* do_cluster(datapoint** data, int k, int iter){
     }
     for(int i = 0; i < iter; i++){
         int converged = 1;
+        printf("Doint iteration %d\n", i);
         for(int j = 0; j < data_size; j++){
+            // printf("Iterating over point %f, %f, %f\n", data[j]->vector[0], data[j]->vector[1], data[j]->vector[2]);
+            datapoint* s = data[j];
             curr_cent = data[j]->centroid;
-            curr_delta = distance(data[j], curr_cent); // TODO don't do this if centroid is null
-            converged &= curr_delta < EPSILON;
+            if(curr_cent == NULL || !curr_cent){
+                curr_delta = MAXFLOAT;
+            } else {
+                curr_delta = distance(data[j], curr_cent); // this has a segmentation fault that happens on line 85?
+            }
             for(int c_idx = 0; c_idx < k; c_idx++){
                 loop_delta = distance(data[j], &result[c_idx]);
                 if(loop_delta < curr_delta){
                     curr_delta = loop_delta;
                     curr_cent = &result[c_idx];
                 }
+
                 // DELETED THE * ON BOTH curr_cent, data[j]
-            add_point(curr_cent, data[j]);
             }
+            add_point(curr_cent, data[j]);
         }
         for(int c_idx = 0; c_idx < k; c_idx++){
             update_vector(result[c_idx]);
@@ -244,9 +257,7 @@ int main(int argc, char* argv[]) {
         free_data(data);
         return 1;
     }
-
     cluster* result = do_cluster(data, k, iter);
-
     for (int i = 0; i < k; i++) {
         for (int j = 0; j < result[i].vector_size; j++) {
             if (j > 0) printf(",");
@@ -259,4 +270,3 @@ int main(int argc, char* argv[]) {
     free_clusters(result, k);
     return 0;
 }
-
