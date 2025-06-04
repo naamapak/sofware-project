@@ -20,6 +20,7 @@ typedef struct cluster {
     int vector_size;
     int cluster_size;
     datapoint** points;
+    double diff_to_prev;
 } cluster;
 
 
@@ -142,15 +143,17 @@ data_size++;
 void _remove_point(cluster* c, datapoint* p){
     /* Removes p from the array in c, doesn't do anything to p */
     int index = 0;
+    int found = 0;
     int i;
     for(i = 0; i < c->cluster_size; i++){
         /*if(&c->points[i] == &p){ */
         if (c->points[i]->vector == p->vector){  /*CHANGED FROM EARLIER LINE - COMPARING POINTERS */
-
             index = i;
+            found = 1;
             break;
         }
     }
+    if(!found){ return; }
     for(; index < c->cluster_size - 1; index ++){
         c->points[index] = c->points[index + 1];
     }
@@ -184,23 +187,29 @@ void add_point(cluster* c, datapoint* p){ /* void add_point(cluster c, datapoint
     return;
 }
 
+
 void update_vector(cluster c){
 
     int i;
     int j;
     double sum = 0.0;
+    double euclidean = 0.0;
+    double prev;
     /* Update c to have be the average of its points */
     if(c.cluster_size == 0 || !c.points){
         return;
     }
 
     for(i = 0; i < c.vector_size; i++){
+        prev = c.vector[i];
         sum = 0.0; /*ADDED THIS LINE TO RESET SUM EVERY DIM */ 
         for(j = 0; j < c.cluster_size; j++){
             sum += c.points[j]->vector[i];
         }
         c.vector[i] = sum / c.cluster_size;
+        euclidean += pow(prev - c.vector[i], 2);
     }
+    c.diff_to_prev = sqrt(euclidean);
     return;
 }
 
@@ -216,13 +225,14 @@ cluster* do_cluster(datapoint** data, int k, int iter){
     double** prev_centroids;
 
 for(i = 0; i < k; i++){ /* Initialize k clusters */
-    copy_vector(&result[i], data[i]); 
+    copy_vector(&result[i], data[i]);
     result[i].points = malloc(sizeof(datapoint));
     result[i].points[0] = data[i];
     result[i].cluster_size = 1;
+    data[i]->centroid = &result[i];
 }
 
-for(i = 0; i < iter + 1; i++){
+for(i = 0; i < iter; i++){
     converged = 1;
     for(j_size = 0; j_size < data_size; j_size++){
         curr_cent = data[j_size]->centroid;
@@ -249,37 +259,46 @@ for(i = 0; i < iter + 1; i++){
             prev_centroids[c_idx][j_int] = result[c_idx].vector[j_int];
         }
     }
-
+    int all_points = 0;
     /* update the vectors */
     for(c_idx = 0; c_idx < k; c_idx++){
         update_vector(result[c_idx]);
+        converged &= result[c_idx].diff_to_prev < EPSILON;
+        all_points += result[c_idx].cluster_size;
     }
+    // /* check convergence */
+    // for (c_idx = 0; c_idx < k; c_idx++) {
+    //     double sum = 0.0;
+    //     for (j_int = 0; j_int < result[c_idx].vector_size; j_int++) {
+    //         sum += pow(prev_centroids[c_idx][j_int] - result[c_idx].vector[j_int], 2);
+    //         /*if (fabs(prev_centroids[c_idx][j_int] - result[c_idx].vector[j_int]) >= EPSILON) {
+    //             converged = 0;
+    //             break;
+    //         }*/
+    //     }
+    //     if(sqrt(sum) >= EPSILON){
+    //         converged = 0;
+    //         break;
+    //     } else { printf("%f\n", sum); }
+    //     if (!converged){
+    //     break; }
+    // }
 
-    /* check convergence */
-    for (c_idx = 0; c_idx < k; c_idx++) {
-        for (j_int = 0; j_int < result[c_idx].vector_size; j_int++) {
-            if (fabs(prev_centroids[c_idx][j_int] - result[c_idx].vector[j_int]) >= EPSILON) {
-                converged = 0;
-                break;
-            }
-        }
-        if (!converged) break;
-    }
-
-    /* free memory */
-    for (c_idx = 0; c_idx < k; c_idx++) {
-        free(prev_centroids[c_idx]);
-    }
-    free(prev_centroids);
- /* stop if converged */
-    if (converged) {
-        break;
-    }
+    // /* free memory */
+    // for (c_idx = 0; c_idx < k; c_idx++) {
+    //     free(prev_centroids[c_idx]);
+    // }
+    // free(prev_centroids);
+    // /* stop if converged */
+    // if (converged) {
+    //     break;
+    // }
    
 
 }
 return result;
 }
+
 void free_data(datapoint** data){
     /* Freeing vectors and points. Not freeing clusters to not double-free */
     int i;
