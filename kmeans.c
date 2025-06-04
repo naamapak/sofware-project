@@ -19,7 +19,7 @@ typedef struct cluster {
     double* vector;
     int vector_size;
     int cluster_size;
-    datapoint* points;
+    datapoint** points;
 } cluster;
 
 
@@ -58,23 +58,27 @@ datapoint** _read_input(){
     size_t len = 0;
     double curr_d;
     char c = getchar();
-    char* current_num;
-    double* line = malloc(sizeof(double));
     datapoint* p;  /*MOVED THIS TO THE TOP BEFORE CODE*/ 
     datapoint** temp;
-    datapoint** result = malloc(sizeof(datapoint*));
+    char* current_num;
+    double* line;
+    datapoint** result = malloc(sizeof(datapoint));
     
     while(c == EOF || c == '\0' || c == ' '){
         c = getchar();
     }
     while(c != EOF){ /* Iterate over file */
         line_len = 0;
+        line = malloc(sizeof(double));
         while(c != '\n'){ /* Iterate over line */
             len = 0;
             current_num = malloc(sizeof(char));
+            if(!current_num){
+                printf("An error has occured\n");
+                exit(1);
+            }
             while(c != ',' && c != '\n'){ /* Iterate over number */
                 current_num[len] = c;
-                /* printf("reallocating num\n"); */
                 current_num = realloc(current_num, (++len) * sizeof(char));
                 if(!current_num){
                     printf("An Error Has Occured\n");
@@ -84,9 +88,9 @@ datapoint** _read_input(){
             }
             curr_d = strtod(current_num, NULL);
             free(current_num);
-            line[line_len] = curr_d;
-            /* printf("reallocating line\n"); */
-            line = realloc(line, (++line_len) * sizeof(double));
+            line = realloc(line, (++line_len) * sizeof(curr_d));
+            line[line_len - 1] = curr_d;
+            /* printf("reallocating line for size %ld with num %f\n",line_len, curr_d); */
             if(c == '\n'){
                 break;
             }
@@ -110,7 +114,7 @@ datapoint** _read_input(){
     result = realloc(result, sizeof(datapoint) * data_size);
     }
     Reallocate result array to hold one more datapoint */
-    temp = realloc(result, (data_size + 1) * sizeof(datapoint*));
+    temp = realloc(result, (data_size + 1) * sizeof(datapoint));
     if (!temp) {
         printf("An Error Has Occured\n");
         free(p->vector);/* DID IT: Also consider freeing p->vector if allocated earlier*/
@@ -132,7 +136,7 @@ void _remove_point(cluster* c, datapoint* p){
     int i;
     for(i = 0; i < c->cluster_size; i++){
         /*if(&c->points[i] == &p){ */
-        if (c->points[i].vector == p->vector){  /*CHANGED FROM EARLIER LINE - COMPARING POINTERS */
+        if (c->points[i]->vector == p->vector){  /*CHANGED FROM EARLIER LINE - COMPARING POINTERS */
 
             index = i;
             break;
@@ -159,12 +163,13 @@ void add_point(cluster* c, datapoint* p){ /* void add_point(cluster c, datapoint
     if(p->centroid){
         _remove_point(p->centroid, p);
     }
-    c->points = realloc(c->points, (++c->cluster_size) * sizeof(datapoint));
-    if(!c->points){
-        printf("An Error Has Occured\n");
+    c->points = realloc(c->points, (++c->cluster_size) * sizeof(datapoint*));
+    if (!c->points) {
+        printf("An Error Has Occurred\n");
         exit(1);
     }
-    c->points[c->cluster_size - 1] = *p;
+    c->points[c->cluster_size - 1] = p;
+
     p->centroid = c;
     return;
 }
@@ -182,7 +187,7 @@ void update_vector(cluster c){
     for(i = 0; i < c.vector_size; i++){
         sum = 0.0; /*ADDED THIS LINE TO RESET SUM EVERY DIM */ 
         for(j = 0; j < c.cluster_size; j++){
-            sum += c.points[j].vector[i];
+            sum += c.points[j]->vector[i];
         }
         c.vector[i] = sum / c.cluster_size;
     }
@@ -203,7 +208,7 @@ cluster* do_cluster(datapoint** data, int k, int iter){
 for(i = 0; i < k; i++){ /* Initialize k clusters */
     copy_vector(&result[i], data[i]); 
     result[i].points = malloc(sizeof(datapoint));
-    result[i].points[0] = *data[i];
+    result[i].points[0] = data[i];
     result[i].cluster_size = 1;
 }
 
@@ -312,7 +317,7 @@ int main(int argc, char* argv[]) {
     iter = (argc == 3) ? atoi(argv[2]) : 400; /*if iter is provided convert into int*/ 
 
     data = _read_input(); /* reads data points from stdin */
-
+    printf("Read data\n");
     if (k <= 1 || k >= (int)data_size) { /* checks validity of k */
         printf("Incorrect number of clusters!\n");
         free_data(data);
