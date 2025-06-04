@@ -28,6 +28,14 @@ double distance(datapoint* p, cluster* c){
     CHANGED THE UCLIDIAN FUNC _ WAS + INSTEAD OF - */
     double sum = 0;
     int i;
+    if (p == NULL || c == NULL || p->vector == NULL || c->vector == NULL) {
+        fprintf(stderr, "Null pointer in distance()\n");
+        return MAXFLOAT;
+    }
+    if (p->vector_size != c->vector_size) {
+        fprintf(stderr, "Mismatched vector sizes: p = %d, c = %d\n", p->vector_size, c->vector_size);
+        return MAXFLOAT;
+    }
     for(i = 0; i < p->vector_size; i++){
         sum += pow(p->vector[i] - c->vector[i], 2);
     };
@@ -78,8 +86,8 @@ datapoint** _read_input(){
                 exit(1);
             }
             while(c != ',' && c != '\n'){ /* Iterate over number */
-                current_num[len] = c;
                 current_num = realloc(current_num, (++len) * sizeof(char));
+                current_num[len - 1] = c;
                 if(!current_num){
                     printf("An Error Has Occured\n");
                     exit(1);
@@ -106,6 +114,7 @@ datapoint** _read_input(){
     p = malloc(sizeof(datapoint));
     p->vector = line;
     p->vector_size = line_len;
+    p->centroid = NULL;
     /* result[data_size] = p;
     data_size++;
         CHANGED FROM EARLIER LINE: result = realloc(result, (data_size) * sizeof(datapoint)); - size of the pointer not the actual data_point
@@ -168,6 +177,7 @@ void add_point(cluster* c, datapoint* p){ /* void add_point(cluster c, datapoint
         printf("An Error Has Occurred\n");
         exit(1);
     }
+    c->points = realloc(c->points, c->cluster_size * sizeof(datapoint*));
     c->points[c->cluster_size - 1] = p;
 
     p->centroid = c;
@@ -212,9 +222,8 @@ for(i = 0; i < k; i++){ /* Initialize k clusters */
     result[i].cluster_size = 1;
 }
 
-for(i = 0; i < iter; i++){
+for(i = 0; i < iter + 1; i++){
     converged = 1;
-    /* printf("Doing iteration %d\n", i); */
     for(j_size = 0; j_size < data_size; j_size++){
         curr_cent = data[j_size]->centroid;
         if(curr_cent == NULL || !curr_cent){
@@ -317,7 +326,7 @@ int main(int argc, char* argv[]) {
     iter = (argc == 3) ? atoi(argv[2]) : 400; /*if iter is provided convert into int*/ 
 
     data = _read_input(); /* reads data points from stdin */
-    printf("Read data\n");
+
     if (k <= 1 || k >= (int)data_size) { /* checks validity of k */
         printf("Incorrect number of clusters!\n");
         free_data(data);
