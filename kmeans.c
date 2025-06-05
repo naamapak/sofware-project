@@ -27,11 +27,12 @@ double distance(datapoint* p, cluster* c){
     double sum = 0;
     int i;
     if (p == NULL || c == NULL || p->vector == NULL || c->vector == NULL) { /* checks for edge cases */
-        fprintf(stderr, "Null pointer in distance()\n");
+        printf("An Error Has Occured\n");
         return MAXFLOAT;
     }
     if (p->vector_size != c->vector_size) { /* dimension mismatch*/
-        fprintf(stderr, "Mismatched vector sizes: p = %d, c = %d\n", p->vector_size, c->vector_size);
+        // fprintf(stderr, "Mismatched vector sizes: p = %d, c = %d\n", p->vector_size, c->vector_size);
+        printf("An Error Has Occured\n");
         return MAXFLOAT;
     }
     for(i = 0; i < p->vector_size; i++){ /* does the actual calculation according to the formula given */
@@ -92,7 +93,7 @@ datapoint** _read_input(){
             len = 0;
             current_num = malloc(sizeof(char));
             if(!current_num){
-                printf("An error has occured\n");
+                printf("An Error Has Occured\n");
                 exit(1);
             }
             while(c != ',' && c != '\n'){ /* iterate over number */
@@ -118,7 +119,7 @@ datapoint** _read_input(){
         }
 
     if(data_size > 1 && line_len != prev_len){ /* validates lines being the same length */
-            printf("Invalid input\n"); /* TODO make this the correct */
+            printf("An Error Has Occured\n"); /* TODO make this the correct */
             exit(1);
         }
 
@@ -315,11 +316,11 @@ int main(int argc, char* argv[]) {
     cluster* result;
 
     if (argc != 2 && argc != 3) { /*valid input is getting one argument k or 2 arguments k and iter, all else invalid */
-        printf("Invalid input\n");
+        printf("An Error Has Occured\n");
         return 1;
     }
     if ( !is_positive_int(argv[1]) ||(argc == 3 && !is_positive_int(argv[2]))){/* checks if the numbers are valid */
-    printf("Invalid input\n");
+    printf("An Error Has Occured\n");
     return 1;
     }
     /* classify the inputs to k and iter */
