@@ -104,6 +104,8 @@ datapoint** _read_input(){
                 }
                 c = getchar();
             }
+            current_num = realloc(current_num, (len + 1) * sizeof(char));
+            current_num[len] = '\0';
             curr_d = strtod(current_num, NULL);
             free(current_num);
             line = realloc(line, (++line_len) * sizeof(curr_d));
@@ -157,9 +159,10 @@ void _remove_point(cluster* c, datapoint* p){
     for(; index < c->cluster_size - 1; index ++){
         c->points[index] = c->points[index + 1];
     }
-    if(c->cluster_size <= 1 || c->points == NULL){
-        c->points = malloc(sizeof(datapoint*));
-    } 
+    if (c->cluster_size == 0) {
+        free(c->points);
+        c->points = NULL;
+    }
     c->cluster_size--;
     c->points = realloc(c->points, c->cluster_size * sizeof(datapoint*));
     return;
@@ -221,8 +224,6 @@ cluster* do_cluster(datapoint** data, int k, int iter){
     size_t j_size;
     int j_int;
     int converged=0;
-    double** prev_centroids;
-    int all_points = 0;
 
 for(i = 0; i < k; i++){ /* initialize k clusters */
     copy_vector(&result[i], data[i]);
@@ -252,44 +253,59 @@ for(i = 0; i < iter; i++){
     }
 
     /* store previous centroids */
-    prev_centroids = malloc(sizeof(double*) * k);
-    for (c_idx = 0; c_idx < k; c_idx++) {
-        prev_centroids[c_idx] = malloc(sizeof(double) * result[c_idx].vector_size);
-        for (j_int = 0; j_int < result[c_idx].vector_size; j_int++) {
-            prev_centroids[c_idx][j_int] = result[c_idx].vector[j_int];
-        }
-    }
+    // prev_centroids = malloc(sizeof(double*) * k);
+    // for (c_idx = 0; c_idx < k; c_idx++) {
+    //     prev_centroids[c_idx] = malloc(sizeof(double) * result[c_idx].vector_size);
+    //     for (j_int = 0; j_int < result[c_idx].vector_size; j_int++) {
+    //         prev_centroids[c_idx][j_int] = result[c_idx].vector[j_int];
+    //     }
+    // }
     
     /* update the vectors */
     for(c_idx = 0; c_idx < k; c_idx++){
         update_vector(result[c_idx]);
         converged &= result[c_idx].diff_to_prev < EPSILON;
-        all_points += result[c_idx].cluster_size;
     }
 }
 return result;
 }
 
+void _free_datapoint(datapoint* point) {
+    /*Not freeing clusters to not double free*/
+    if (point == NULL) return;
+    
+    if (point->vector != NULL) {
+        free(point->vector);
+    }
+
+}
+
+
+
 void free_data(datapoint** data){
-    /* freeing vectors and points. Not freeing clusters to not double-free */
-    int i;
-    for(i = 0; i < (int) data_size; i++){
+    for(size_t i=0; i < data_size; i++){
         free(data[i]->vector);
         free(data[i]);
     }
-    free(data); 
-    return;
+    free(data);
 }
 
-void free_clusters(cluster* data, int k){
-    int i;
-    for (i = 0; i < k; i++) {
-    free(data[i].vector);
-    free(data[i].points);
+void free_clusters(cluster* clusters, int k) {
+    if (clusters == NULL) return;
+
+    for (int i = 0; i < k; i++) {
+        if (clusters[i].vector != NULL) {
+            free(clusters[i].vector);
+        }
+
+        if (clusters[i].points != NULL) {
+            free(clusters[i].points);
+        }
     }
-    free(data);
-    return;
+
+    free(clusters);
 }
+
 
 
 /* main function, it's int main because it suppose to return 0 / 1 */
@@ -332,8 +348,7 @@ int main(int argc, char* argv[]) {
         }
         printf("\n");
     }
-
-    free_data(data);
     free_clusters(result, k);
+    free_data(data);
     return 0;
 }
