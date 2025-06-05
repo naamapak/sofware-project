@@ -55,6 +55,19 @@ void copy_vector(cluster* dest, const datapoint* src) {
     }
 }
 
+/* returns 1 if s is a valid number */
+int is_positive_int(const char *s)
+{
+    if (*s == '\0')  /* empty string */
+        return 0;
+    while (*s) {
+        if (*s < '0' || *s > '9') /* non-digit */
+            return 0;          
+        ++s;
+    }
+    return 1;
+}
+
 datapoint** _read_input(){
     /* reads input from stdin using getchar.
     not null-terminating anything, keeping track of size in data_size, keeps sizes of each line */
@@ -209,6 +222,7 @@ cluster* do_cluster(datapoint** data, int k, int iter){
     int j_int;
     int converged=0;
     double** prev_centroids;
+    int all_points = 0;
 
 for(i = 0; i < k; i++){ /* initialize k clusters */
     copy_vector(&result[i], data[i]);
@@ -245,40 +259,13 @@ for(i = 0; i < iter; i++){
             prev_centroids[c_idx][j_int] = result[c_idx].vector[j_int];
         }
     }
-    int all_points = 0;
+    
     /* update the vectors */
     for(c_idx = 0; c_idx < k; c_idx++){
         update_vector(result[c_idx]);
         converged &= result[c_idx].diff_to_prev < EPSILON;
         all_points += result[c_idx].cluster_size;
     }
-    // /* check convergence */
-    // for (c_idx = 0; c_idx < k; c_idx++) {
-    //     double sum = 0.0;
-    //     for (j_int = 0; j_int < result[c_idx].vector_size; j_int++) {
-    //         sum += pow(prev_centroids[c_idx][j_int] - result[c_idx].vector[j_int], 2);
-    //         /*if (fabs(prev_centroids[c_idx][j_int] - result[c_idx].vector[j_int]) >= EPSILON) {
-    //             converged = 0;
-    //             break;
-    //         }*/
-    //     }
-    //     if(sqrt(sum) >= EPSILON){
-    //         converged = 0;
-    //         break;
-    //     } else { printf("%f\n", sum); }
-    //     if (!converged){
-    //     break; }
-    // }
-
-    // /* free memory */
-    // for (c_idx = 0; c_idx < k; c_idx++) {
-    //     free(prev_centroids[c_idx]);
-    // }
-    // free(prev_centroids);
-    // /* stop if converged */
-    // if (converged) {
-    //     break;
-    // }
 }
 return result;
 }
@@ -314,6 +301,10 @@ int main(int argc, char* argv[]) {
     if (argc != 2 && argc != 3) { /*valid input is getting one argument k or 2 arguments k and iter, all else invalid */
         printf("Invalid input\n");
         return 1;
+    }
+    if ( !is_positive_int(argv[1]) ||(argc == 3 && !is_positive_int(argv[2]))){/* checks if the numbers are valid */
+    printf("Invalid input\n");
+    return 1;
     }
     /* classify the inputs to k and iter */
     k = atoi(argv[1]);
