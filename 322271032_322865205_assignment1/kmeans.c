@@ -31,7 +31,6 @@ double distance(datapoint* p, cluster* c){
         return MAXFLOAT;
     }
     if (p->vector_size != c->vector_size) { /* dimension mismatch*/
-        // fprintf(stderr, "Mismatched vector sizes: p = %d, c = %d\n", p->vector_size, c->vector_size);
         printf("An Error Has Occured\n");
         return MAXFLOAT;
     }
@@ -223,7 +222,6 @@ cluster* do_cluster(datapoint** data, int k, int iter){
     double loop_delta;
     int i, c_idx;
     size_t j_size;
-    int j_int;
     int converged=0;
 
 for(i = 0; i < k; i++){ /* initialize k clusters */
@@ -253,14 +251,6 @@ for(i = 0; i < iter; i++){
         add_point(curr_cent, data[j_size]);
     }
 
-    /* store previous centroids */
-    // prev_centroids = malloc(sizeof(double*) * k);
-    // for (c_idx = 0; c_idx < k; c_idx++) {
-    //     prev_centroids[c_idx] = malloc(sizeof(double) * result[c_idx].vector_size);
-    //     for (j_int = 0; j_int < result[c_idx].vector_size; j_int++) {
-    //         prev_centroids[c_idx][j_int] = result[c_idx].vector[j_int];
-    //     }
-    // }
     
     /* update the vectors */
     for(c_idx = 0; c_idx < k; c_idx++){
@@ -284,7 +274,8 @@ void _free_datapoint(datapoint* point) {
 
 
 void free_data(datapoint** data){
-    for(size_t i=0; i < data_size; i++){
+    size_t i;
+    for(i=0 ; i < data_size; i++){
         free(data[i]->vector);
         free(data[i]);
     }
@@ -292,9 +283,10 @@ void free_data(datapoint** data){
 }
 
 void free_clusters(cluster* clusters, int k) {
+    int i;
     if (clusters == NULL) return;
 
-    for (int i = 0; i < k; i++) {
+    for(i=0; i < k; i++) {
         if (clusters[i].vector != NULL) {
             free(clusters[i].vector);
         }
