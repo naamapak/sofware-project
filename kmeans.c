@@ -3,41 +3,38 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define EPSILON 0.001
-size_t data_size = 0;  /* Global variable to hold the number of data lines */
+#define EPSILON 0.001 /* global constant according to the assignment's defenition */
+size_t data_size = 0;  /* global variable to hold the number of data lines */
 
-/*typedef struct datapoint datapoint; DELETED THE LINES _ SHOWED ERROR CAUSE WE DEFINE AFTER: error: redefinition of typedef ‘datapoint’
-typedef struct cluster cluster;*/
-
-typedef struct datapoint {
-    double* vector;
-    int vector_size;
-    struct cluster* centroid;
+/* represents a single data point in the data set */
+typedef struct datapoint { 
+    double* vector; /* cordinates of the point */
+    int vector_size; /* dimension of the vector */
+    struct cluster* centroid; /* pointer to the cluster the point is currently assigned to */
 } datapoint;
 
 typedef struct cluster {
-    double* vector;
-    int vector_size;
-    int cluster_size;
-    datapoint** points;
-    double diff_to_prev;
+    double* vector; /* cordinates of the cluster's centroid */
+    int vector_size;/* dimension of the cluster's centroid vector */
+    int cluster_size;/* number of points currently assigned to the cluster */
+    datapoint** points;/* array of pointers to the datapoints in this cluster */
+    double diff_to_prev;/* distance between current and previous centroid (to check convergence) */
 } cluster;
 
 
 double distance(datapoint* p, cluster* c){
-    /* Computes distance from datapoint to cluster. Assumes equal lengths
-    CHANGED THE UCLIDIAN FUNC _ WAS + INSTEAD OF - */
+    /* computes distance from datapoint to cluster. assumes equal lengths */
     double sum = 0;
     int i;
-    if (p == NULL || c == NULL || p->vector == NULL || c->vector == NULL) {
+    if (p == NULL || c == NULL || p->vector == NULL || c->vector == NULL) { /* checks for edge cases */
         fprintf(stderr, "Null pointer in distance()\n");
         return MAXFLOAT;
     }
-    if (p->vector_size != c->vector_size) {
+    if (p->vector_size != c->vector_size) { /* dimension mismatch*/
         fprintf(stderr, "Mismatched vector sizes: p = %d, c = %d\n", p->vector_size, c->vector_size);
         return MAXFLOAT;
     }
-    for(i = 0; i < p->vector_size; i++){
+    for(i = 0; i < p->vector_size; i++){ /* does the actual calculation according to the formula given */
         sum += pow(p->vector[i] - c->vector[i], 2);
     };
     return sqrt(sum);
@@ -45,7 +42,7 @@ double distance(datapoint* p, cluster* c){
 
 void copy_vector(cluster* dest, const datapoint* src) {
     int i;
-    /* Used for creating the initial clusters */
+    /* used to create the initial clusters */
     dest->vector_size = src->vector_size;
     dest->vector = malloc(dest->vector_size * sizeof(double));
     if (!dest->vector) {
@@ -59,15 +56,14 @@ void copy_vector(cluster* dest, const datapoint* src) {
 }
 
 datapoint** _read_input(){
-    /* Reads input from stdin using getchar.
-    not null-terminating anything, keeping track of size in data_size
-    Keeps sizes of each line */
+    /* reads input from stdin using getchar.
+    not null-terminating anything, keeping track of size in data_size, keeps sizes of each line */
     size_t prev_len= 0;
     size_t line_len = 0;
     size_t len = 0;
     double curr_d;
     char c = getchar();
-    datapoint* p;  /*MOVED THIS TO THE TOP BEFORE CODE*/ 
+    datapoint* p; 
     datapoint** temp;
     char* current_num;
     double* line;
@@ -76,17 +72,17 @@ datapoint** _read_input(){
     while(c == EOF || c == '\0' || c == ' '){
         c = getchar();
     }
-    while(c != EOF){ /* Iterate over file */
+    while(c != EOF){ /* iterate over file */
         line_len = 0;
         line = malloc(sizeof(double));
-        while(c != '\n'){ /* Iterate over line */
+        while(c != '\n'){ /* iterate over line */
             len = 0;
             current_num = malloc(sizeof(char));
             if(!current_num){
                 printf("An error has occured\n");
                 exit(1);
             }
-            while(c != ',' && c != '\n'){ /* Iterate over number */
+            while(c != ',' && c != '\n'){ /* iterate over number */
                 current_num = realloc(current_num, (++len) * sizeof(char));
                 current_num[len - 1] = c;
                 if(!current_num){
@@ -99,14 +95,14 @@ datapoint** _read_input(){
             free(current_num);
             line = realloc(line, (++line_len) * sizeof(curr_d));
             line[line_len - 1] = curr_d;
-            /* printf("reallocating line for size %ld with num %f\n",line_len, curr_d); */
+
             if(c == '\n'){
                 break;
             }
             c = getchar();
         }
 
-    if(data_size > 1 && line_len != prev_len){ /* Validates lines being the same length */
+    if(data_size > 1 && line_len != prev_len){ /* validates lines being the same length */
             printf("Invalid input\n"); /* TODO make this the correct */
             exit(1);
         }
@@ -116,14 +112,6 @@ datapoint** _read_input(){
     p->vector = line;
     p->vector_size = line_len;
     p->centroid = NULL;
-    /* result[data_size] = p;
-    data_size++;
-        CHANGED FROM EARLIER LINE: result = realloc(result, (data_size) * sizeof(datapoint)); - size of the pointer not the actual data_point
-    printf("reallocating result: %ld \n", data_size);
-    if(data_size > 1){
-    result = realloc(result, sizeof(datapoint) * data_size);
-    }
-    Reallocate result array to hold one more datapoint */
     temp = realloc(result, (data_size + 1) * sizeof(datapoint));
     if (!temp) {
         printf("An Error Has Occured\n");
@@ -141,13 +129,12 @@ data_size++;
 }
 
 void _remove_point(cluster* c, datapoint* p){
-    /* Removes p from the array in c, doesn't do anything to p */
+    /* removes point p from the array in c, doesn't do anything to point p */
     int index = 0;
     int found = 0;
     int i;
     for(i = 0; i < c->cluster_size; i++){
-        /*if(&c->points[i] == &p){ */
-        if (c->points[i]->vector == p->vector){  /*CHANGED FROM EARLIER LINE - COMPARING POINTERS */
+        if (c->points[i]->vector == p->vector){  
             index = i;
             found = 1;
             break;
@@ -165,10 +152,8 @@ void _remove_point(cluster* c, datapoint* p){
     return;
 }
 
-/*CHANGED THE FUNC VARS TO EFFECT THE ACTUAL OBJ OUTSIDE OF THE FUNC
-// CHANGED ALL THE . TO -> */
-void add_point(cluster* c, datapoint* p){ /* void add_point(cluster c, datapoint p)
-    Add p to c's points and update p's centroid */
+void add_point(cluster* c, datapoint* p){ 
+    /* add p to c's points and update p's centroid */
     if(p->centroid == c){
         return;
     }
@@ -189,24 +174,24 @@ void add_point(cluster* c, datapoint* p){ /* void add_point(cluster c, datapoint
 
 
 void update_vector(cluster c){
-
+    /* update c to be the average of its points (average for each cordinate) - as described in the assignment */
     int i;
     int j;
     double sum = 0.0;
     double euclidean = 0.0;
     double prev;
-    /* Update c to have be the average of its points */
+    
     if(c.cluster_size == 0 || !c.points){
         return;
     }
 
-    for(i = 0; i < c.vector_size; i++){
+    for(i = 0; i < c.vector_size; i++){ /* goes through each dimension */
         prev = c.vector[i];
-        sum = 0.0; /*ADDED THIS LINE TO RESET SUM EVERY DIM */ 
-        for(j = 0; j < c.cluster_size; j++){
+        sum = 0.0; /* resets sum for every seperate dimension */ 
+        for(j = 0; j < c.cluster_size; j++){ /* goes through each of vector's value in the current dimension */
             sum += c.points[j]->vector[i];
         }
-        c.vector[i] = sum / c.cluster_size;
+        c.vector[i] = sum / c.cluster_size; /* finds the average */
         euclidean += pow(prev - c.vector[i], 2);
     }
     c.diff_to_prev = sqrt(euclidean);
@@ -214,6 +199,7 @@ void update_vector(cluster c){
 }
 
 cluster* do_cluster(datapoint** data, int k, int iter){
+    /* main algorithem that creates the clusters and doing the tuning iterations based on the algorithem from the assignment */
     cluster* result = malloc(sizeof(cluster) * k);
     cluster* curr_cent;
     double curr_delta;
@@ -224,7 +210,7 @@ cluster* do_cluster(datapoint** data, int k, int iter){
     int converged=0;
     double** prev_centroids;
 
-for(i = 0; i < k; i++){ /* Initialize k clusters */
+for(i = 0; i < k; i++){ /* initialize k clusters */
     copy_vector(&result[i], data[i]);
     result[i].points = malloc(sizeof(datapoint));
     result[i].points[0] = data[i];
@@ -293,20 +279,18 @@ for(i = 0; i < iter; i++){
     // if (converged) {
     //     break;
     // }
-   
-
 }
 return result;
 }
 
 void free_data(datapoint** data){
-    /* Freeing vectors and points. Not freeing clusters to not double-free */
+    /* freeing vectors and points. Not freeing clusters to not double-free */
     int i;
     for(i = 0; i < (int) data_size; i++){
         free(data[i]->vector);
         free(data[i]);
     }
-    free(data);
+    free(data); 
     return;
 }
 
@@ -320,18 +304,9 @@ void free_clusters(cluster* data, int k){
     return;
 }
 
-/*void main(){
-    int k;
-    int iter;
-    scanf("%d %d", &k, &iter);
-    datapoint** data = _read_input(k);
-    cluster* result = do_cluster(data, k, iter);
-    free_data(data);
-    free_clusters(result, k);
-}
-NEW MAIN _ INCLUDES INT MAIN AS REQUIRED ("return 0 / 1")*/
-int main(int argc, char* argv[]) {
 
+/* main function, it's int main because it suppose to return 0 / 1 */
+int main(int argc, char* argv[]) {
     int k, iter, i, j;
     datapoint** data;
     cluster* result;
@@ -342,17 +317,17 @@ int main(int argc, char* argv[]) {
     }
     /* classify the inputs to k and iter */
     k = atoi(argv[1]);
-    iter = (argc == 3) ? atoi(argv[2]) : 400; /*if iter is provided convert into int*/ 
+    iter = (argc == 3) ? atoi(argv[2]) : 400; /* if iter is provided convert into int */ 
 
     data = _read_input(); /* reads data points from stdin */
 
-    if (k <= 1 || k >= (int)data_size) { /* checks validity of k */
+    if (k <= 1 || k >= (int)data_size) { /* checks validity of k: 1 < k < N */
         printf("Incorrect number of clusters!\n");
         free_data(data);
         return 1;
     }
 
-    if (iter <= 1 || iter >= 1000) {/* checks validity of iter */
+    if (iter <= 1 || iter >= 1000) {/* checks validity of iter: 1 < iter < 1000 */
         printf("Incorrect maximum iteration!\n");
         free_data(data);
         return 1;
