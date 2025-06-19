@@ -36,9 +36,13 @@ class datapoint:
     
 
 def parse_input(file1, file2):
-    # do join with pandas
+    df1, df2 = pd.read_csv(file1, index_col=0), pd.read_csv(file2, index_col=0)
+    data = df1.join(df2, how='inner')
+    for line in data:
+        
 
 def choose_centroids(data, k):
+    # TODO: change this to go over a pandas dataframe and not a list of objects maybe
     result = []
     result.append(centroid(numpy.random.choice(data, 1).vector))
     all_distances = 0
