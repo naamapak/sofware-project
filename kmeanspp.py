@@ -7,20 +7,6 @@ import sys
 
 MAX_DISTANCE = 999999999999999
 
-def parse_args():
-    args = sys.argv
-    if len(args) not in args[5,6]:
-        print("Invalid number of arguments!")
-        exit(1)
-    k = int(args[1])
-    iter = 300 if len(args) == 5 else int(args[2])
-    eps = float(args[-3])
-    file1, file2 = args[-2], args[-1]
-    return k, iter, eps, file1, file2
-
-if __name__ == "__main__":
-    
-
 class centroid:
     ## changed from set to list
     def __init__(self, vector, points =None):
@@ -90,3 +76,25 @@ def choose_centroids(data, k):
                 p.curr_distance = dist
 
     return centroids
+
+def parse_args():
+    args = sys.argv
+    if len(args) not in args[5,6]:
+        print("Invalid number of arguments!")
+        exit(1)
+    k = int(args[1])
+    iter = 300 if len(args) == 5 else int(args[2])
+    eps = float(args[-3])
+    file1, file2 = args[-2], args[-1]
+    return k, iter, eps, file1, file2
+
+if __name__ == "__main__":
+    k, iter, eps, file1, file2 = parse_args()
+    data, df = parse_input(file1, file2)
+    centroids = choose_centroids(k)
+
+    initial_centroids = [c.vector.tolist() for c in centroids]
+    all_points = [p.vector.toalist() for p in data]
+
+    final_centroids = mykmeanssp.fit(initial_centroids, all_points, k, iter, eps)
+    
