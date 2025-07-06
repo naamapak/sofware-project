@@ -8,6 +8,76 @@
 #define EPSILON 0.001 /* global constant according to the assignment's defenition */
 size_t data_size = 0;  /* global variable to hold the number of data lines */
 
+static PyObject* GetList(PyObject* self, PyObject* args)  // copy-pasted from course example
+{
+    int N,r;
+    PyObject* python_val;
+    PyObject* python_int;
+    if (!PyArg_ParseTuple(args, "i", &N)) {
+        return NULL;
+    }
+    python_val = PyList_New(N);
+    for (int i = 0; i < N; ++i)
+    {
+        r = i;
+        python_int = Py_BuildValue("i", r);
+        PyList_SetItem(python_val, i, python_int);
+    }
+    return python_val;
+}
+
+// module's function table
+static PyMethodDef kMeans_FunctionsTable[] = {
+    {
+        "fit", // name exposed to Python
+        fit, // C wrapper function
+        METH_VARARGS, // received variable args (but really just 1)
+        "Implements k-means clustering" // documentation
+    }, {
+        NULL, NULL, 0, NULL
+    }
+};
+
+// modules definition
+static struct PyModuleDef kmeansmodule = {
+    PyModuleDef_HEAD_INIT,
+    "kmeansmodule",
+    "Module for doing kmeans clustering.",
+    -1,
+    kMeans_FunctionsTable // Figure out how the hell this is done
+};
+
+
+PyObject* fit(PyObject* self, PyObject* args){
+    int k;
+    int iter;
+    PyObject* py_data;
+    PyObject* py_clusters;
+    PyObject* py_result;
+    size_t datasize;
+    size_t dimention;
+    datapoint** data;
+    cluster* result;
+    double epsilon;
+
+    if(!PyArg_ParseTuple(args, "some string", &k, &iter, &py_data, &py_clusters, &datasize, &dimention, &epsilon)){
+        return NULL;
+    }
+
+    if (!(PyList_Check(py_data) && PyList_Check(py_clusters))) {
+        PyErr_SetString(PyExc_TypeError, "Expected data and clusters to be lists.");
+        return NULL;
+    }    
+
+    data = _read_python_datapoints(py_data, dimention, datasize);
+    result = _read_python_clusters(py_clusters, dimention, k);
+    // Parse python input: should be: a list of datapoints, 
+    result = do_cluster(data, result, k, iter, epsilon);
+    free_clusters(result, k);
+    free_data(data);
+    return py_result;
+}
+
 /* represents a single data point in the data set */
 typedef struct datapoint { 
     double* vector; /* cordinates of the point */
@@ -55,94 +125,6 @@ void copy_vector(cluster* dest, const datapoint* src) {
     for (i = 0; i < src->vector_size; ++i) {
         dest->vector[i] = src->vector[i];
     }
-}
-
-/* returns 1 if s is a valid number */
-int is_positive_int(const char *s)
-{
-    if (*s == '\0')  /* empty string */
-        return 0;
-    while (*s) {
-        if (*s < '0' || *s > '9') /* non-digit */
-            return 0;          
-        ++s;
-    }
-    return 1;
-}
-
-datapoint** _read_input(){
-    /* reads input from stdin using getchar.
-    not null-terminating anything, keeping track of size in data_size, keeps sizes of each line */
-    size_t prev_len= 0;
-    size_t line_len = 0;
-    size_t len = 0;
-    double curr_d;
-    char c = getchar();
-    datapoint* p; 
-    datapoint** temp;
-    char* current_num;
-    double* line;
-    datapoint** result = malloc(sizeof(datapoint));
-    
-    while(c == EOF || c == '\0' || c == ' '){
-        c = getchar();
-    }
-    while(c != EOF){ /* iterate over file */
-        line_len = 0;
-        line = malloc(sizeof(double));
-        while(c != '\n'){ /* iterate over line */
-            len = 0;
-            current_num = malloc(sizeof(char));
-            if(!current_num){
-                printf("An Error Has Occured\n");
-                exit(1);
-            }
-            while(c != ',' && c != '\n'){ /* iterate over number */
-                current_num = realloc(current_num, (++len) * sizeof(char));
-                current_num[len - 1] = c;
-                if(!current_num){
-                    printf("An Error Has Occured\n");
-                    exit(1);
-                }
-                c = getchar();
-            }
-            current_num = realloc(current_num, (len + 1) * sizeof(char));
-            current_num[len] = '\0';
-            curr_d = strtod(current_num, NULL);
-            free(current_num);
-            line = realloc(line, (++line_len) * sizeof(curr_d));
-            line[line_len - 1] = curr_d;
-
-            if(c == '\n'){
-                break;
-            }
-            c = getchar();
-        }
-
-    if(data_size > 1 && line_len != prev_len){ /* validates lines being the same length */
-            printf("An Error Has Occured\n"); /* TODO make this the correct */
-            exit(1);
-        }
-
-    prev_len = line_len;
-    p = malloc(sizeof(datapoint));
-    p->vector = line;
-    p->vector_size = line_len;
-    p->centroid = NULL;
-    temp = realloc(result, (data_size + 1) * sizeof(datapoint));
-    if (!temp) {
-        printf("An Error Has Occured\n");
-        free(p->vector);/* DID IT: Also consider freeing p->vector if allocated earlier*/
-        free(p);
-        exit(1);
-}
-result = temp;
-result[data_size] = p;
-data_size++;
-
-    c = getchar();
-    }
-    return result;
 }
 
 void _remove_point(cluster* c, datapoint* p){
@@ -216,10 +198,59 @@ void update_vector(cluster c){
     return;
 }
 
-PyObject* fit(PyObject* self, PyObject* args){
-    // Parse python input
-    // do_cluster
-    // give back result as pyobject
+datapoint** _read_python_datapoints(PyObject* py_data, int dimention, int datasize){
+    datapoint* data = malloc(sizeof(datapoint) * datasize);
+      if (!data) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    for (Py_ssize_t i = 0; i < datasize; ++i) {
+        PyObject* py_point = PyList_GetItem(py_data, i);  // Borrowed reference
+
+        // Get .vector attribute
+        PyObject* py_vector = PyObject_GetAttrString(py_point, "vector");
+        if (!py_vector || !PyList_Check(py_vector)) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'vector' to be a list");
+            free(data);
+            return NULL;
+        }
+
+        Py_ssize_t vec_size = PyList_Size(py_vector);
+        data[i].vector_size = (int)vec_size;
+        data[i].vector = (double*)malloc(sizeof(double) * vec_size);
+        if (!data[i].vector) {
+            PyErr_NoMemory();
+            free(data);
+            return NULL;
+        }
+
+        for (Py_ssize_t j = 0; j < vec_size; ++j) {
+            PyObject* item = PyList_GetItem(py_vector, j);  // Borrowed reference
+            double val = PyFloat_AsDouble(item);
+            if (PyErr_Occurred()) {
+                Py_DECREF(py_vector);
+                free(data[i].vector);
+                free(data);
+                return NULL;
+            }
+            data[i].vector[j] = val;
+        }
+        Py_DECREF(py_vector);
+
+        // Get .centroid attribute (optional; could be None)
+        PyObject* py_centroid = PyObject_GetAttrString(py_point, "centroid");
+        if (py_centroid == Py_None || !py_centroid) {
+            data[i].centroid = NULL;
+        } else {
+            // You might want to convert or wrap the centroid object here
+            data[i].centroid = (cluster*)py_centroid; // Placeholder cast
+        }
+
+        Py_XDECREF(py_centroid);
+    }
+
+    return &data;
 }
 
 cluster* do_cluster(datapoint** data, cluster* result, int k, int iter, double epsilon){
@@ -258,7 +289,6 @@ for(i = 0; i < iter; i++){
         add_point(curr_cent, data[j_size]);
     }
 
-    
     /* update the vectors */
     for(c_idx = 0; c_idx < k; c_idx++){
         update_vector(result[c_idx]);
@@ -277,8 +307,6 @@ void _free_datapoint(datapoint* point) {
     }
 
 }
-
-
 
 void free_data(datapoint** data){
     size_t i;
@@ -304,51 +332,4 @@ void free_clusters(cluster* clusters, int k) {
     }
 
     free(clusters);
-}
-
-
-
-/* main function, it's int main because it suppose to return 0 / 1 */
-int main(int argc, char* argv[]) {
-    int k, iter, i, j;
-    datapoint** data;
-    cluster* result;
-
-    if (argc != 2 && argc != 3) { /*valid input is getting one argument k or 2 arguments k and iter, all else invalid */
-        printf("An Error Has Occured\n");
-        return 1;
-    }
-    if ( !is_positive_int(argv[1]) ||(argc == 3 && !is_positive_int(argv[2]))){/* checks if the numbers are valid */
-    printf("An Error Has Occured\n");
-    return 1;
-    }
-    /* classify the inputs to k and iter */
-    k = atoi(argv[1]);
-    iter = (argc == 3) ? atoi(argv[2]) : 400; /* if iter is provided convert into int */ 
-
-    data = _read_input(); /* reads data points from stdin */
-
-    if (k <= 1 || k >= (int)data_size) { /* checks validity of k: 1 < k < N */
-        printf("Incorrect number of clusters!\n");
-        free_data(data);
-        return 1;
-    }
-
-    if (iter <= 1 || iter >= 1000) {/* checks validity of iter: 1 < iter < 1000 */
-        printf("Incorrect maximum iteration!\n");
-        free_data(data);
-        return 1;
-    }
-    result = do_cluster(data, k, iter);
-
-    for (i = 0; i < k; i++) {
-        for (j = 0; j < result[i].vector_size; j++) {
-            if (j > 0) printf(",");
-            printf("%.4f", result[i].vector[j]);
-        }
-        printf("\n");
-    }
-    free_clusters(result, k);
-    free_data(data);
-    return 0;
 }
