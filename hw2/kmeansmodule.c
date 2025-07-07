@@ -48,6 +48,16 @@ static struct PyModuleDef kmeansmodule = {
     kMeans_FunctionsTable // Figure out how the hell this is done
 };
 
+PyMODINIT_FUNC PyInit_kmeansmodule(void)
+{
+    PyObject *m;
+    m = PyModule_Create(&kmeansmodule);
+    if (!m) {
+        return NULL;
+    }
+    return m;
+}
+
 double distance(datapoint* p, cluster* c){
     /* computes distance from datapoint to cluster. assumes equal lengths */
     double sum = 0;
@@ -208,6 +218,104 @@ datapoint** _read_python_datapoints(PyObject* py_data, int dimention, int datasi
     return &data;
 }
 
+cluster* _read_python_clusters(PyObject* py_clusters, int k) {
+    if (!PyList_Check(py_clusters)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a list of centroids");
+        return NULL;
+    }
+
+    cluster* clusters = malloc(k * sizeof(cluster));
+    if (!clusters) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    for (int i = 0; i < k; i++) {
+        PyObject* py_centroid = PyList_GetItem(py_clusters, i); // Borrowed reference
+        if (!py_centroid) {
+            PyErr_SetString(PyExc_IndexError, "Invalid centroid index");
+            free(clusters);
+            return NULL;
+        }
+
+        // centroid.vector
+        PyObject* py_vector = PyObject_GetAttrString(py_centroid, "vector");
+        if (!py_vector || !PyList_Check(py_vector)) {
+            PyErr_SetString(PyExc_TypeError, "centroid.vector must be a list of floats");
+            free(clusters);
+            return NULL;
+        }
+
+        int vector_size = (int)PyList_Size(py_vector);
+        double* vector = malloc(vector_size * sizeof(double));
+        if (!vector) {
+            PyErr_NoMemory();
+            free(clusters);
+            return NULL;
+        }
+
+        for (int j = 0; j < vector_size; j++) {
+            PyObject* item = PyList_GetItem(py_vector, j); // Borrowed reference
+            double val = PyFloat_AsDouble(item);
+            if (PyErr_Occurred()) {
+                PyErr_SetString(PyExc_TypeError, "centroid.vector must contain floats");
+                free(vector);
+                free(clusters);
+                return NULL;
+            }
+            vector[j] = val;
+        }
+        Py_DECREF(py_vector);
+
+        // centroid.points (could be None or list)
+        PyObject* py_points = PyObject_GetAttrString(py_centroid, "points");
+        datapoint** points = NULL;
+        int cluster_size = 0;
+
+        if (py_points != Py_None) {
+            if (!PyList_Check(py_points)) {
+                PyErr_SetString(PyExc_TypeError, "centroid.points must be a list or None");
+                free(vector);
+                free(clusters);
+                return NULL;
+            }
+
+            cluster_size = (int)PyList_Size(py_points);
+            points = malloc(cluster_size * sizeof(datapoint*));
+            if (!points) {
+                PyErr_NoMemory();
+                free(vector);
+                free(clusters);
+                return NULL;
+            }
+
+            for (int j = 0; j < cluster_size; j++) {
+                PyObject* py_point = PyList_GetItem(py_points, j); // Borrowed reference
+                datapoint* dp = (datapoint*)PyCapsule_GetPointer(py_point, "datapoint_ptr");
+                if (!dp) {
+                    PyErr_SetString(PyExc_TypeError, "Invalid datapoint capsule");
+                    free(points);
+                    free(vector);
+                    free(clusters);
+                    return NULL;
+                }
+                points[j] = dp;
+            }
+        }
+
+        Py_DECREF(py_points); // safe to do even if it's Py_None
+
+        // Fill the cluster struct
+        clusters[i].vector = vector;
+        clusters[i].vector_size = vector_size;
+        clusters[i].cluster_size = cluster_size;
+        clusters[i].points = points; // May be NULL
+        clusters[i].diff_to_prev = 0.0;
+    }
+
+    return clusters;
+}
+
 cluster* do_cluster(datapoint** data, cluster* result, int k, int iter, double epsilon){
     /* main algorithem that creates the clusters and doing the tuning iterations based on the algorithem from the assignment */
     cluster* curr_cent;
@@ -310,7 +418,7 @@ PyObject* fit(PyObject* self, PyObject* args){
     }    
 
     data = _read_python_datapoints(py_data, dimention, data_size);
-    result = _read_python_clusters(py_clusters, dimention, k);
+    result = _read_python_clusters(py_clusters, k);
     // Parse python input: should be: a list of datapoints, 
     result = do_cluster(data, result, k, iter, epsilon);
     free_clusters(result, k);

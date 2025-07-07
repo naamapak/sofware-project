@@ -79,7 +79,7 @@ def choose_centroids(data, k):
 
 def parse_args():
     args = sys.argv
-    if len(args) not in args[5,6]:
+    if len(args) not in [5,6]:
         print("Invalid number of arguments!")
         exit(1)
     k = int(args[1])
@@ -91,9 +91,10 @@ def parse_args():
 if __name__ == "__main__":
     k, iter, eps, file1, file2 = parse_args()
     data, df = parse_input(file1, file2)
-    centroids = choose_centroids(k)
+    centroids = choose_centroids(data, k)
 
     initial_centroids = [c.vector.tolist() for c in centroids]
-    all_points = [p.vector.toalist() for p in data]
-
-    final_centroids = mykmeanssp.fit(initial_centroids, all_points, k, iter, eps)
+    all_points = [p.vector.tolist() for p in data]
+    
+    final_centroids = mykmeanssp.fit(k, iter, all_points, centroids, len(all_points), all_points[0].dimention, eps)
+   # &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon
