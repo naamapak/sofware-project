@@ -9,7 +9,7 @@
 #define EPSILON 0.001 /* global constant according to the assignment's defenition */
 size_t data_size = 0;  /* global variable to hold the number of data lines */
 
-static PyObject* GetList(PyObject* self, PyObject* args)  // copy-pasted from course example
+static PyObject* GetList(PyObject* self, PyObject* args)  // copy-pasted from course example, not needed
 {
     int N,r;
     PyObject* python_val;
@@ -295,13 +295,12 @@ PyObject* fit(PyObject* self, PyObject* args){
     PyObject* py_data;
     PyObject* py_clusters;
     PyObject* py_result;
-    size_t datasize;
     size_t dimention;
     datapoint** data;
     cluster* result;
     double epsilon;
 
-    if(!PyArg_ParseTuple(args, "some string", &k, &iter, &py_data, &py_clusters, &datasize, &dimention, &epsilon)){
+    if(!PyArg_ParseTuple(args, "some string", &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon)){
         return NULL;
     }
 
@@ -310,7 +309,7 @@ PyObject* fit(PyObject* self, PyObject* args){
         return NULL;
     }    
 
-    data = _read_python_datapoints(py_data, dimention, datasize);
+    data = _read_python_datapoints(py_data, dimention, data_size);
     result = _read_python_clusters(py_clusters, dimention, k);
     // Parse python input: should be: a list of datapoints, 
     result = do_cluster(data, result, k, iter, epsilon);
