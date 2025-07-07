@@ -1,13 +1,17 @@
 import numpy as np
 import pandas as pd
+import kmeansmodule as mykmeanssp # TODO rename stuff
+import sys
+
 #do c api things
 
 MAX_DISTANCE = 999999999999999
 
 class centroid:
-    def __init__(self, vector, points = set()):
+    ## changed from set to list
+    def __init__(self, vector, points =None):
         self.vector = vector
-        self.points = points
+        self.points = points if points is not None else []
         self.dimention = len(vector)
     
     def update_vector(self):
@@ -17,11 +21,16 @@ class centroid:
             self.vector[i] = sum([p.vector[i] for p in self.points]) / len(self.points)
         return
     
+    ##changed cause we are using a list not a set
     def add_point(self, p):
         if p.centroid:
-            p.centroid.points.remove(p)
+            try:
+                p.centroid.points.remove(p)
+            except ValueError: # in case point is not actually there
+                pass
+
         p.centroid = self
-        self.points.add(p)
+        self.points.append(p)
         return
 
 class datapoint:
@@ -32,26 +41,59 @@ class datapoint:
         self.curr_distance = -1
 
     def distance(self, other):
-        return numpy.linalg.norm(self.vector - other.vector)
+        return np.linalg.norm(self.vector - other.vector)
     
 
 def parse_input(file1, file2):
-    df1, df2 = pd.read_csv(file1, index_col=0), pd.read_csv(file2, index_col=0)
-    data = df1.join(df2, how='inner')
-    for line in data:
-        
+    df1 = pd.read_csv(file1, index_col=0)
+    df2 = pd.read_csv(file2, index_col=0)
+    df = df1.join(df2, how='inner')
+    datapoints = [datapoint(np.array(row)) for row in df.values]
+    return datapoints, df
 
+## did a whole new func (based on prev logic but better)
 def choose_centroids(data, k):
-    # TODO: change this to go over a pandas dataframe and not a list of objects maybe
-    result = []
-    result.append(centroid(numpy.random.choice(data, 1).vector))
-    all_distances = 0
-    for i in range(1, k):
+    np.random.seed(1234)
+    centroids = []
+
+    # Step 1: choose first centroid randomly
+    first = np.random.choice(data)
+    centroids.append(first)
+
+    for p in data:
+        p.curr_distance = p.distance(first)
+
+    for _ in range(1, k):
+        distances = np.array([p.curr_distance ** 2 for p in data])
+        probs = distances / distances.sum()
+        chosen = np.random.choice(data, p=probs)
+        centroids.append(chosen)
+
+        # Update distances
         for p in data:
-            to_last = p.distance(result[-1])
-            if p.curr_distance < 0 or to_last < p.curr_distance:
-                result[-1].add_point(p)
-                all_distances += to_last - p.curr_distance
-                p.curr_distance = to_last
-        result.append(centroid(numpy.random.choice(data, 1, p=lambda x: x.curr_distance / all_distances).vector))
-    return result
+            dist = p.distance(chosen)
+            if dist < p.curr_distance:
+                p.curr_distance = dist
+
+    return centroids
+
+def parse_args():
+    args = sys.argv
+    if len(args) not in args[5,6]:
+        print("Invalid number of arguments!")
+        exit(1)
+    k = int(args[1])
+    iter = 300 if len(args) == 5 else int(args[2])
+    eps = float(args[-3])
+    file1, file2 = args[-2], args[-1]
+    return k, iter, eps, file1, file2
+
+if __name__ == "__main__":
+    k, iter, eps, file1, file2 = parse_args()
+    data, df = parse_input(file1, file2)
+    centroids = choose_centroids(k)
+
+    initial_centroids = [c.vector.tolist() for c in centroids]
+    all_points = [p.vector.toalist() for p in data]
+
+    final_centroids = mykmeanssp.fit(initial_centroids, all_points, k, iter, eps)

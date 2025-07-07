@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <Python.h>
+#include "kmeansdefs.h"
 
 #define EPSILON 0.001 /* global constant according to the assignment's defenition */
 size_t data_size = 0;  /* global variable to hold the number of data lines */
@@ -46,53 +47,6 @@ static struct PyModuleDef kmeansmodule = {
     -1,
     kMeans_FunctionsTable // Figure out how the hell this is done
 };
-
-
-PyObject* fit(PyObject* self, PyObject* args){
-    int k;
-    int iter;
-    PyObject* py_data;
-    PyObject* py_clusters;
-    PyObject* py_result;
-    size_t datasize;
-    size_t dimention;
-    datapoint** data;
-    cluster* result;
-    double epsilon;
-
-    if(!PyArg_ParseTuple(args, "some string", &k, &iter, &py_data, &py_clusters, &datasize, &dimention, &epsilon)){
-        return NULL;
-    }
-
-    if (!(PyList_Check(py_data) && PyList_Check(py_clusters))) {
-        PyErr_SetString(PyExc_TypeError, "Expected data and clusters to be lists.");
-        return NULL;
-    }    
-
-    data = _read_python_datapoints(py_data, dimention, datasize);
-    result = _read_python_clusters(py_clusters, dimention, k);
-    // Parse python input: should be: a list of datapoints, 
-    result = do_cluster(data, result, k, iter, epsilon);
-    free_clusters(result, k);
-    free_data(data);
-    return py_result;
-}
-
-/* represents a single data point in the data set */
-typedef struct datapoint { 
-    double* vector; /* cordinates of the point */
-    int vector_size; /* dimension of the vector */
-    struct cluster* centroid; /* pointer to the cluster the point is currently assigned to */
-} datapoint;
-
-typedef struct cluster {
-    double* vector; /* cordinates of the cluster's centroid */
-    int vector_size;/* dimension of the cluster's centroid vector */
-    int cluster_size;/* number of points currently assigned to the cluster */
-    datapoint** points;/* array of pointers to the datapoints in this cluster */
-    double diff_to_prev;/* distance between current and previous centroid (to check convergence) */
-} cluster;
-
 
 double distance(datapoint* p, cluster* c){
     /* computes distance from datapoint to cluster. assumes equal lengths */
@@ -198,6 +152,7 @@ void update_vector(cluster c){
     return;
 }
 
+/* See if this actually works */
 datapoint** _read_python_datapoints(PyObject* py_data, int dimention, int datasize){
     datapoint* data = malloc(sizeof(datapoint) * datasize);
       if (!data) {
@@ -332,4 +287,34 @@ void free_clusters(cluster* clusters, int k) {
     }
 
     free(clusters);
+}
+
+PyObject* fit(PyObject* self, PyObject* args){
+    int k;
+    int iter;
+    PyObject* py_data;
+    PyObject* py_clusters;
+    PyObject* py_result;
+    size_t datasize;
+    size_t dimention;
+    datapoint** data;
+    cluster* result;
+    double epsilon;
+
+    if(!PyArg_ParseTuple(args, "some string", &k, &iter, &py_data, &py_clusters, &datasize, &dimention, &epsilon)){
+        return NULL;
+    }
+
+    if (!(PyList_Check(py_data) && PyList_Check(py_clusters))) {
+        PyErr_SetString(PyExc_TypeError, "Expected data and clusters to be lists.");
+        return NULL;
+    }    
+
+    data = _read_python_datapoints(py_data, dimention, datasize);
+    result = _read_python_clusters(py_clusters, dimention, k);
+    // Parse python input: should be: a list of datapoints, 
+    result = do_cluster(data, result, k, iter, epsilon);
+    free_clusters(result, k);
+    free_data(data);
+    return py_result;
 }
