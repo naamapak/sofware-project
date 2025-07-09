@@ -8,24 +8,7 @@
 
 #define EPSILON 0.001 /* global constant according to the assignment's defenition */
 size_t data_size = 0;  /* global variable to hold the number of data lines */
-
-static PyObject* GetList(PyObject* self, PyObject* args)  // copy-pasted from course example, not needed
-{
-    int N,r;
-    PyObject* python_val;
-    PyObject* python_int;
-    if (!PyArg_ParseTuple(args, "i", &N)) {
-        return NULL;
-    }
-    python_val = PyList_New(N);
-    for (int i = 0; i < N; ++i)
-    {
-        r = i;
-        python_int = Py_BuildValue("i", r);
-        PyList_SetItem(python_val, i, python_int);
-    }
-    return python_val;
-}
+size_t dimention;
 
 // module's function table
 static PyMethodDef kMeans_FunctionsTable[] = {
@@ -63,11 +46,11 @@ double distance(datapoint* p, cluster* c){
     double sum = 0;
     int i;
     if (p == NULL || c == NULL || p->vector == NULL || c->vector == NULL) { /* checks for edge cases */
-        printf("An Error Has Occured\n");
+        printf("An Error Has Occured 1\n");
         return MAXFLOAT;
     }
-    if (p->vector_size != c->vector_size) { /* dimension mismatch*/
-        printf("An Error Has Occured\n");
+    if (p->vector_size != c->vector_size) { /* dimention mismatch*/
+        printf("An Error Has Occured %d %d\n", p->vector_size, c->vector_size);
         return MAXFLOAT;
     }
     for(i = 0; i < p->vector_size; i++){ /* does the actual calculation according to the formula given */
@@ -126,7 +109,7 @@ void add_point(cluster* c, datapoint* p){
     }
     c->points = realloc(c->points, (++c->cluster_size) * sizeof(datapoint*));
     if (!c->points) {
-        printf("An Error Has Occurred\n");
+        printf("An Error Has Occurred 3\n");
         exit(1);
     }
     c->points = realloc(c->points, c->cluster_size * sizeof(datapoint*));
@@ -149,10 +132,10 @@ void update_vector(cluster c){
         return;
     }
 
-    for(i = 0; i < c.vector_size; i++){ /* goes through each dimension */
+    for(i = 0; i < c.vector_size; i++){ /* goes through each dimention */
         prev = c.vector[i];
-        sum = 0.0; /* resets sum for every seperate dimension */ 
-        for(j = 0; j < c.cluster_size; j++){ /* goes through each of vector's value in the current dimension */
+        sum = 0.0; /* resets sum for every seperate dimention */ 
+        for(j = 0; j < c.cluster_size; j++){ /* goes through each of vector's value in the current dimention */
             sum += c.points[j]->vector[i];
         }
         c.vector[i] = sum / c.cluster_size; /* finds the average */
@@ -163,16 +146,20 @@ void update_vector(cluster c){
 }
 
 /* See if this actually works */
-datapoint** _read_python_datapoints(PyObject* py_data, int dimention, int datasize){
-    datapoint* data = malloc(sizeof(datapoint) * datasize);
+datapoint** _read_python_datapoints(PyObject* py_data){
+    int i = 0;
+    datapoint** data = malloc(sizeof(datapoint*) * data_size);
+    for(i=0; i<data_size; i++){
+        data[i] = malloc(sizeof(datapoint));
+    }
       if (!data) {
+        printf("No memory\n");
         PyErr_NoMemory();
         return NULL;
     }
 
-    for (Py_ssize_t i = 0; i < datasize; ++i) {
+    for (Py_ssize_t i = 0; i < data_size; ++i) {
         PyObject* py_point = PyList_GetItem(py_data, i);  // Borrowed reference
-
         // Get .vector attribute
         PyObject* py_vector = PyObject_GetAttrString(py_point, "vector");
         if (!py_vector || !PyList_Check(py_vector)) {
@@ -180,42 +167,40 @@ datapoint** _read_python_datapoints(PyObject* py_data, int dimention, int datasi
             free(data);
             return NULL;
         }
-
         Py_ssize_t vec_size = PyList_Size(py_vector);
-        data[i].vector_size = (int)vec_size;
-        data[i].vector = (double*)malloc(sizeof(double) * vec_size);
-        if (!data[i].vector) {
+        data[i]->vector_size = (int)vec_size;
+        data[i]->vector = (double*)malloc(sizeof(double) * vec_size);
+        if (!data[i]->vector) {
             PyErr_NoMemory();
             free(data);
             return NULL;
         }
-
         for (Py_ssize_t j = 0; j < vec_size; ++j) {
             PyObject* item = PyList_GetItem(py_vector, j);  // Borrowed reference
             double val = PyFloat_AsDouble(item);
             if (PyErr_Occurred()) {
                 Py_DECREF(py_vector);
-                free(data[i].vector);
+                free(data[i]->vector);
                 free(data);
                 return NULL;
             }
-            data[i].vector[j] = val;
+            data[i]->vector[j] = val;
         }
         Py_DECREF(py_vector);
 
         // Get .centroid attribute (optional; could be None)
         PyObject* py_centroid = PyObject_GetAttrString(py_point, "centroid");
         if (py_centroid == Py_None || !py_centroid) {
-            data[i].centroid = NULL;
+            data[i]->centroid = NULL;
         } else {
             // You might want to convert or wrap the centroid object here
-            data[i].centroid = (cluster*)py_centroid; // Placeholder cast
+            data[i]->centroid = (cluster*)py_centroid; // Placeholder cast
         }
 
         Py_XDECREF(py_centroid);
     }
 
-    return &data;
+    return data;
 }
 
 cluster* _read_python_clusters(PyObject* py_clusters, int k) {
@@ -268,53 +253,79 @@ cluster* _read_python_clusters(PyObject* py_clusters, int k) {
         Py_DECREF(py_vector);
 
         // centroid.points (could be None or list)
-        PyObject* py_points = PyObject_GetAttrString(py_centroid, "points");
         datapoint** points = NULL;
         int cluster_size = 0;
-
-        if (py_points != Py_None) {
-            if (!PyList_Check(py_points)) {
-                PyErr_SetString(PyExc_TypeError, "centroid.points must be a list or None");
-                free(vector);
-                free(clusters);
-                return NULL;
-            }
-
-            cluster_size = (int)PyList_Size(py_points);
-            points = malloc(cluster_size * sizeof(datapoint*));
-            if (!points) {
-                PyErr_NoMemory();
-                free(vector);
-                free(clusters);
-                return NULL;
-            }
-
-            for (int j = 0; j < cluster_size; j++) {
-                PyObject* py_point = PyList_GetItem(py_points, j); // Borrowed reference
-                datapoint* dp = (datapoint*)PyCapsule_GetPointer(py_point, "datapoint_ptr");
-                if (!dp) {
-                    PyErr_SetString(PyExc_TypeError, "Invalid datapoint capsule");
-                    free(points);
-                    free(vector);
-                    free(clusters);
-                    return NULL;
-                }
-                points[j] = dp;
-            }
-        }
-
-        Py_DECREF(py_points); // safe to do even if it's Py_None
 
         // Fill the cluster struct
         clusters[i].vector = vector;
         clusters[i].vector_size = vector_size;
-        clusters[i].cluster_size = cluster_size;
-        clusters[i].points = points; // May be NULL
+        clusters[i].cluster_size = 0;
+        clusters[i].points = malloc(sizeof(datapoint*)); // May be NULL
         clusters[i].diff_to_prev = 0.0;
-    }
+        }
 
     return clusters;
 }
+
+
+PyObject* clusters_to_py_centroids(cluster* result, int k, PyObject* py_centroid_class, PyObject* py_datapoint_class) {
+    PyObject* py_centroid_list = PyList_New(k);  // Final list to return
+    if (!py_centroid_list) return NULL;
+
+    for (int i = 0; i < k; i++) {
+        cluster* c = &result[i];
+
+        // Create Python list of floats for the centroid vector
+        PyObject* vector_list = PyList_New(dimention);
+        for (int j = 0; j < (int) dimention; j++) {
+            PyObject* val = PyFloat_FromDouble(c->vector[j]);
+            PyList_SET_ITEM(vector_list, j, val);  // Steals reference
+        }
+
+        // Build list of datapoint objects for .points
+        PyObject* points_list = PyList_New(c->cluster_size);
+        for (int k = 0; k < c->cluster_size; k++) {
+            datapoint* dp = c->points[k];
+
+            PyObject* dp_vector = PyList_New(dp->vector_size);
+            for (int m = 0; m < dp->vector_size; m++) {
+                PyObject* val = PyFloat_FromDouble(dp->vector[m]);
+                PyList_SET_ITEM(dp_vector, m, val);
+            }
+
+            PyObject* dp_args = PyTuple_Pack(1, dp_vector);  // datapoint(vector)
+            Py_DECREF(dp_vector);
+
+            PyObject* dp_obj = PyObject_CallObject(py_datapoint_class, dp_args);
+            Py_DECREF(dp_args);
+
+            if (!dp_obj) {
+                Py_DECREF(py_centroid_list);
+                return NULL;
+            }
+
+            PyList_SET_ITEM(points_list, k, dp_obj);  // Steals reference
+        }
+
+        // Create centroid object: centroid(vector, points)
+        PyObject* centroid_args = PyTuple_Pack(2, vector_list, points_list);
+        Py_DECREF(vector_list);
+        Py_DECREF(points_list);
+
+        PyObject* centroid_obj = PyObject_CallObject(py_centroid_class, centroid_args);
+        Py_DECREF(centroid_args);
+
+        if (!centroid_obj) {
+            Py_DECREF(py_centroid_list);
+            return NULL;
+        }
+
+        PyList_SET_ITEM(py_centroid_list, i, centroid_obj);  // Steals reference
+    }
+
+    return py_centroid_list;
+}
+
 
 cluster* do_cluster(datapoint** data, cluster* result, int k, int iter, double epsilon){
     /* main algorithem that creates the clusters and doing the tuning iterations based on the algorithem from the assignment */
@@ -324,23 +335,24 @@ cluster* do_cluster(datapoint** data, cluster* result, int k, int iter, double e
     int i, c_idx;
     size_t j_size;
     int converged=0;
-
-for(i = 0; i < k; i++){ /* initialize k clusters */
+/*
+for(i = 0; i < k; i++){ // initialize k clusters
     copy_vector(&result[i], data[i]);
     result[i].points = malloc(sizeof(datapoint));
     result[i].points[0] = data[i];
     result[i].cluster_size = 1;
     data[i]->centroid = &result[i];
-}
-
+}*/
 for(i = 0; i < iter; i++){
     converged = 1;
     for(j_size = 0; j_size < data_size; j_size++){
         curr_cent = data[j_size]->centroid;
         if(curr_cent == NULL || !curr_cent){
             curr_delta = MAXFLOAT;
+
         } else {
             curr_delta = distance(data[j_size], curr_cent);
+
         }
         for(c_idx = 0; c_idx < k; c_idx++){
             loop_delta = distance(data[j_size], &result[c_idx]);
@@ -358,6 +370,7 @@ for(i = 0; i < iter; i++){
         converged &= result[c_idx].diff_to_prev < EPSILON;
     }
 }
+printf("Finished clustering algorithm\n");
 return result;
 }
 
@@ -403,25 +416,27 @@ PyObject* fit(PyObject* self, PyObject* args){
     PyObject* py_data;
     PyObject* py_clusters;
     PyObject* py_result;
-    size_t dimention;
+    PyObject* py_centroid_class;
+    PyObject* py_datapoint_class;
     datapoint** data;
     cluster* result;
     double epsilon;
 
-    if(!PyArg_ParseTuple(args, "iiOOiif", &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon)){
+    if(!PyArg_ParseTuple(args, "iiOOifOO", &k, &iter, &py_data, &py_clusters, &dimention, &epsilon, &py_centroid_class, &py_datapoint_class)){
         return NULL;
     }
 
     if (!(PyList_Check(py_data) && PyList_Check(py_clusters))) {
         PyErr_SetString(PyExc_TypeError, "Expected data and clusters to be lists.");
         return NULL;
-    }    
-
-    data = _read_python_datapoints(py_data, dimention, data_size);
+    }
+    data_size = (int) PyList_Size(py_data);
+    data = _read_python_datapoints(py_data);
     result = _read_python_clusters(py_clusters, k);
     // Parse python input: should be: a list of datapoints, 
+    printf("%.4f\n", data[0]->vector[0]);
     result = do_cluster(data, result, k, iter, epsilon);
-    /* build pyobject */
+    py_result = clusters_to_py_centroids(result, k, py_centroid_class, py_datapoint_class);
     free_clusters(result, k);
     free_data(data);
     return py_result;

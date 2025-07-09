@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import kmeansmodule as mykmeanssp # TODO rename stuff
+import math
 import sys
 
 #do c api things
@@ -41,14 +42,17 @@ class datapoint:
         self.curr_distance = -1
 
     def distance(self, other):
-        return np.linalg.norm(self.vector - other.vector)
-    
+        if len(other.vector) != len(self.vector):
+            print("Unequal vector lengths")
+            return -1
+        else:
+            return math.sqrt(sum([(self.vector[i] - other.vector[i]) ** 2 for i in range(self.dimention)]))    
 
 def parse_input(file1, file2):
-    df1 = pd.read_csv(file1, index_col=0)
-    df2 = pd.read_csv(file2, index_col=0)
-    df = df1.join(df2, how='inner')
-    datapoints = [datapoint(np.array(row)) for row in df.values]
+    df1 = pd.read_csv(file1, index_col=0, header=None)
+    df2 = pd.read_csv(file2, index_col=0, header=None)    
+    df = df1.join(df2, on=0, how='inner', lsuffix="_")
+    datapoints = [datapoint(list(row)) for row in df.values if len(row) > 0]
     return datapoints, df
 
 ## did a whole new func (based on prev logic but better)
@@ -66,7 +70,7 @@ def choose_centroids(data, k):
     for _ in range(1, k):
         distances = np.array([p.curr_distance ** 2 for p in data])
         probs = distances / distances.sum()
-        chosen = np.random.choice(data, p=probs)
+        chosen = centroid(np.random.choice(data, p=probs).vector)
         centroids.append(chosen)
 
         # Update distances
@@ -93,8 +97,10 @@ if __name__ == "__main__":
     data, df = parse_input(file1, file2)
     centroids = choose_centroids(data, k)
 
-    initial_centroids = [c.vector.tolist() for c in centroids]
-    all_points = [p.vector.tolist() for p in data]
+    initial_centroids = [c.vector for c in centroids]
+    all_points = [p.vector for p in data]
+    final_centroids = mykmeanssp.fit(k, iter, data, centroids, data[0].dimention, eps, centroid, datapoint)
 
-    final_centroids = mykmeanssp.fit(k, iter, data, centroids, len(all_points), data[0].dimention, eps)
+    for c in final_centroids:
+        print(c.vector)
    # &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon
