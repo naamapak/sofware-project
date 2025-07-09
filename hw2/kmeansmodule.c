@@ -45,7 +45,7 @@ static struct PyModuleDef kmeansmodule = {
     "kmeansmodule",
     "Module for doing kmeans clustering.",
     -1,
-    kMeans_FunctionsTable // Figure out how the hell this is done
+    kMeans_FunctionsTable 
 };
 
 PyMODINIT_FUNC PyInit_kmeansmodule(void)
@@ -408,7 +408,7 @@ PyObject* fit(PyObject* self, PyObject* args){
     cluster* result;
     double epsilon;
 
-    if(!PyArg_ParseTuple(args, "some string", &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon)){
+    if(!PyArg_ParseTuple(args, "iiOOiif", &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon)){
         return NULL;
     }
 
@@ -421,6 +421,7 @@ PyObject* fit(PyObject* self, PyObject* args){
     result = _read_python_clusters(py_clusters, k);
     // Parse python input: should be: a list of datapoints, 
     result = do_cluster(data, result, k, iter, epsilon);
+    /* build pyobject */
     free_clusters(result, k);
     free_data(data);
     return py_result;

@@ -95,6 +95,6 @@ if __name__ == "__main__":
 
     initial_centroids = [c.vector.tolist() for c in centroids]
     all_points = [p.vector.tolist() for p in data]
-    
-    final_centroids = mykmeanssp.fit(k, iter, all_points, centroids, len(all_points), all_points[0].dimention, eps)
+
+    final_centroids = mykmeanssp.fit(k, iter, data, centroids, len(all_points), data[0].dimention, eps)
    # &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon
