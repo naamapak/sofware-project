@@ -51,7 +51,7 @@ class datapoint:
 def parse_input(file1, file2):
     df1 = pd.read_csv(file1, index_col=0, header=None)
     df2 = pd.read_csv(file2, index_col=0, header=None)    
-    df = df1.join(df2, on=0, how='inner', lsuffix="_")
+    df = df1.join(df2, on=0, how='inner', lsuffix="_", sort=True)
     datapoints = [datapoint(list(row)) for row in df.values if len(row) > 0]
     return datapoints, df
 
@@ -89,19 +89,49 @@ def parse_args():
     if len(args) not in [5,6]:
         print("Invalid number of arguments!")
         exit(1)
-    k = int(args[1])
-    iter = 300 if len(args) == 5 else int(args[2])
-    eps = float(args[-3])
+    k = args[1]
+    if k.isdigit():
+        k = int(k)
+        if k < 1:
+            print("Invalid number of clusters!")
+            exit(1)
+    else:
+        print("Invalid number of clusters!")
+        exit(1)
+    if len(args) <= 5:
+        iter = 300
+    else:
+        try:
+            iter = int(args[2])
+        except ValueError:
+            print("Invalid maximum iteration!")
+            exit(1)
+        if iter < 1 or iter > 1000:
+            print("Invalid maximum iteration!")
+            exit(1)
+    try:
+        eps = float(args[-3])
+    except ValueError:
+        print("Invalid epsilon!")
+        exit(1)
+    if eps < 0:
+        print("Invalid epsilon!")
+        exit(1)
     file1, file2 = args[-2], args[-1]
     return k, iter, eps, file1, file2
 
 if __name__ == "__main__":
     k, iter, eps, file1, file2 = parse_args()
     data, df = parse_input(file1, file2)
+    if k > len(data):
+        print("Invalid number of clusters!")
+        exit(1)
+
     centroids, indices = choose_centroids(data, k)
 
     initial_centroids = [c.vector for c in centroids]
     all_points = [p.vector for p in data]
+    print(len(all_points))
     final_centroids = mykmeanssp.fit(k, iter, data, centroids, data[0].dimention, eps, centroid, datapoint)
     # &k, &iter, &py_data, &py_clusters, &dimention, &epsilon, &py_centroid_class, &py_datapoint_class
     # Print indices of initial centroids
