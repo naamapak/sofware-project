@@ -9,6 +9,7 @@
 #define EPSILON 0.001 /* global constant according to the assignment's defenition */
 size_t data_size = 0;  /* global variable to hold the number of data lines */
 size_t dimention;
+char* ERROR_MESSAGE = "An Error Has Occured\n";
 
 // module's function table
 static PyMethodDef kMeans_FunctionsTable[] = {
@@ -46,11 +47,11 @@ double distance(datapoint* p, cluster* c){
     double sum = 0;
     int i;
     if (p == NULL || c == NULL || p->vector == NULL || c->vector == NULL) { /* checks for edge cases */
-        printf("An Error Has Occured 1\n");
+            printf("%s\n", ERROR_MESSAGE);
         return MAXFLOAT;
     }
     if (p->vector_size != c->vector_size) { /* dimention mismatch*/
-        printf("An Error Has Occured %d %d\n", p->vector_size, c->vector_size);
+            printf("%s\n", ERROR_MESSAGE);
         return MAXFLOAT;
     }
     for(i = 0; i < p->vector_size; i++){ /* does the actual calculation according to the formula given */
@@ -109,7 +110,7 @@ void add_point(cluster* c, datapoint* p){
     }
     c->points = realloc(c->points, (++c->cluster_size) * sizeof(datapoint*));
     if (!c->points) {
-        printf("An Error Has Occurred 3\n");
+            printf("%s\n", ERROR_MESSAGE);
         exit(1);
     }
     c->points = realloc(c->points, c->cluster_size * sizeof(datapoint*));
@@ -153,7 +154,7 @@ datapoint** _read_python_datapoints(PyObject* py_data){
         data[i] = malloc(sizeof(datapoint));
     }
       if (!data) {
-        printf("An Error Has Occured\n");
+            printf("%s\n", ERROR_MESSAGE);
         PyErr_NoMemory();
         return NULL;
     }
@@ -163,7 +164,7 @@ datapoint** _read_python_datapoints(PyObject* py_data){
         // Get .vector attribute
         PyObject* py_vector = PyObject_GetAttrString(py_point, "vector");
         if (!py_vector || !PyList_Check(py_vector)) {
-            PyErr_SetString(PyExc_TypeError, "An Error Has Occured\n");
+            PyErr_SetString(PyExc_TypeError, ERROR_MESSAGE);
             free(data);
             return NULL;
         }
@@ -205,7 +206,7 @@ datapoint** _read_python_datapoints(PyObject* py_data){
 
 cluster* _read_python_clusters(PyObject* py_clusters, int k) {
     if (!PyList_Check(py_clusters)) {
-        PyErr_SetString(PyExc_TypeError, "Expected a list of centroids");
+        PyErr_SetString(PyExc_TypeError, ERROR_MESSAGE);
         return NULL;
     }
 
@@ -218,7 +219,7 @@ cluster* _read_python_clusters(PyObject* py_clusters, int k) {
     for (int i = 0; i < k; i++) {
         PyObject* py_centroid = PyList_GetItem(py_clusters, i); // Borrowed reference
         if (!py_centroid) {
-            PyErr_SetString(PyExc_IndexError, "Invalid centroid index");
+            PyErr_SetString(PyExc_IndexError, ERROR_MESSAGE);
             free(clusters);
             return NULL;
         }
@@ -226,7 +227,7 @@ cluster* _read_python_clusters(PyObject* py_clusters, int k) {
         // centroid.vector
         PyObject* py_vector = PyObject_GetAttrString(py_centroid, "vector");
         if (!py_vector || !PyList_Check(py_vector)) {
-            PyErr_SetString(PyExc_TypeError, "centroid.vector must be a list of floats");
+            PyErr_SetString(PyExc_TypeError, ERROR_MESSAGE);
             free(clusters);
             return NULL;
         }
@@ -243,7 +244,7 @@ cluster* _read_python_clusters(PyObject* py_clusters, int k) {
             PyObject* item = PyList_GetItem(py_vector, j); // Borrowed reference
             double val = PyFloat_AsDouble(item);
             if (PyErr_Occurred()) {
-                PyErr_SetString(PyExc_TypeError, "centroid.vector must contain floats");
+                PyErr_SetString(PyExc_TypeError, ERROR_MESSAGE);
                 free(vector);
                 free(clusters);
                 return NULL;
@@ -426,7 +427,7 @@ PyObject* fit(PyObject* self, PyObject* args){
     }
 
     if (!(PyList_Check(py_data) && PyList_Check(py_clusters))) {
-        PyErr_SetString(PyExc_TypeError, "Expected data and clusters to be lists.");
+        PyErr_SetString(PyExc_TypeError, ERROR_MESSAGE);
         return NULL;
     }
     data_size = (int) PyList_Size(py_data);
