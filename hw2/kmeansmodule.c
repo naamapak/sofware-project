@@ -153,7 +153,7 @@ datapoint** _read_python_datapoints(PyObject* py_data){
         data[i] = malloc(sizeof(datapoint));
     }
       if (!data) {
-        printf("No memory\n");
+        printf("An Error Has Occured\n");
         PyErr_NoMemory();
         return NULL;
     }
@@ -163,7 +163,7 @@ datapoint** _read_python_datapoints(PyObject* py_data){
         // Get .vector attribute
         PyObject* py_vector = PyObject_GetAttrString(py_point, "vector");
         if (!py_vector || !PyList_Check(py_vector)) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'vector' to be a list");
+            PyErr_SetString(PyExc_TypeError, "An Error Has Occured\n");
             free(data);
             return NULL;
         }
@@ -370,7 +370,6 @@ for(i = 0; i < iter; i++){
         converged &= result[c_idx].diff_to_prev < EPSILON;
     }
 }
-printf("Finished clustering algorithm\n");
 return result;
 }
 
@@ -434,7 +433,6 @@ PyObject* fit(PyObject* self, PyObject* args){
     data = _read_python_datapoints(py_data);
     result = _read_python_clusters(py_clusters, k);
     // Parse python input: should be: a list of datapoints, 
-    printf("%.4f\n", data[0]->vector[0]);
     result = do_cluster(data, result, k, iter, epsilon);
     py_result = clusters_to_py_centroids(result, k, py_centroid_class, py_datapoint_class);
     free_clusters(result, k);

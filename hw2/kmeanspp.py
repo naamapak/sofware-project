@@ -51,7 +51,7 @@ class datapoint:
 def parse_input(file1, file2):
     df1 = pd.read_csv(file1, index_col=0, header=None)
     df2 = pd.read_csv(file2, index_col=0, header=None)    
-    df = df1.join(df2, on=0, how='inner', lsuffix="_", sort=True)
+    df = df1.join(df2, on=0, how='inner', lsuffix="_")
     datapoints = [datapoint(list(row)) for row in df.values if len(row) > 0]
     return datapoints, df
 
@@ -59,14 +59,12 @@ def parse_input(file1, file2):
 def choose_centroids(data, k):
     np.random.seed(1234)
     centroids = []
-    indices = range(len(data))
-    chosen_i = []
+    indices = []
 
     # Step 1: choose first centroid randomly
-    first_i = np.random.choice(indices)
-    first = data[first_i]
+    first = np.random.choice(data)
     centroids.append(first)
-    chosen_i.append(first_i)
+    indices.append(data.index(first))
 
     for p in data:
         p.curr_distance = p.distance(first)
@@ -74,10 +72,9 @@ def choose_centroids(data, k):
     for _ in range(1, k):
         distances = np.array([p.curr_distance ** 2 for p in data])
         probs = distances / distances.sum()
-        chosen_i.append(np.random.choice(indices, p=probs))
-        chosen = centroid(data[chosen_i[-1]].vector)
-
-        centroids.append(chosen)
+        chosen = np.random.choice(data, p=probs)
+        centroids.append(centroid(chosen.vector))
+        indices.append(data.index(chosen))
 
         # Update distances
         for p in data:
@@ -85,7 +82,7 @@ def choose_centroids(data, k):
             if dist < p.curr_distance:
                 p.curr_distance = dist
 
-    return centroids, chosen_i
+    return centroids, indices
 
 def parse_args():
     args = sys.argv
@@ -105,10 +102,11 @@ if __name__ == "__main__":
 
     initial_centroids = [c.vector for c in centroids]
     all_points = [p.vector for p in data]
-    print(indices[0])
-    print(','.join([str(i) for i in indices]))
     final_centroids = mykmeanssp.fit(k, iter, data, centroids, data[0].dimention, eps, centroid, datapoint)
+    # &k, &iter, &py_data, &py_clusters, &dimention, &epsilon, &py_centroid_class, &py_datapoint_class
+    # Print indices of initial centroids
+    print(",".join(map(str, indices)))
 
-    for centroid in final_centroids:
-        print(','.join(f"{x:.4f}" for x in centroid.vector))
-   # &k, &iter, &py_data, &py_clusters, &data_size, &dimention, &epsilon
+# Print final centroids from the C result (which is a list of lists)
+    for c in final_centroids:
+        print(','.join([f"{x:.4f}" for x in c.vector]))
