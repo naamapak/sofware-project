@@ -13,7 +13,6 @@ typedef struct cluster {
     double diff_to_prev;/* distance between current and previous centroid (to check convergence) */
 } cluster;
 
-datapoint** _read_python_datapoints(PyObject* py_data, int dimention, int datasize);
 cluster* _read_python_clusters(PyObject* py_clusters, int k);
 cluster* do_cluster(datapoint** data, cluster* result, int k, int iter, double epsilon);
 PyObject* fit(PyObject* self, PyObject* args);
