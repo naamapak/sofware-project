@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-import kmeansmodule as mykmeanssp # TODO rename stuff
+import mykmeanssp
 import math
 import sys
 
-#do c api things
-
-MAX_DISTANCE = 999999999999999
+ERROR_MESSAGE = "An Error Has Occured"
 
 class centroid:
     ## changed from set to list
@@ -43,7 +41,7 @@ class datapoint:
 
     def distance(self, other):
         if len(other.vector) != len(self.vector):
-            print("Unequal vector lengths")
+            print(ERROR_MESSAGE)
             return -1
         else:
             return math.sqrt(sum([(self.vector[i] - other.vector[i]) ** 2 for i in range(self.dimention)]))    
@@ -70,7 +68,7 @@ def choose_centroids(data, k):
         p.curr_distance = p.distance(first)
 
     for _ in range(1, k):
-        distances = np.array([p.curr_distance ** 2 for p in data])
+        distances = np.array([p.curr_distance for p in data])
         probs = distances / distances.sum()
         chosen = np.random.choice(data, p=probs)
         centroids.append(centroid(chosen.vector))
@@ -85,14 +83,17 @@ def choose_centroids(data, k):
     return centroids, indices
 
 def parse_args():
+    '''
+    Checks validity of arguments and returns k, iter, epsilon, two paths
+    '''
     args = sys.argv
     if len(args) not in [5,6]:
-        print("Invalid number of arguments!")
+        print(ERROR_MESSAGE)
         exit(1)
     k = args[1]
     if k.isdigit():
         k = int(k)
-        if k < 1:
+        if k <= 1:
             print("Invalid number of clusters!")
             exit(1)
     else:
@@ -106,7 +107,7 @@ def parse_args():
         except ValueError:
             print("Invalid maximum iteration!")
             exit(1)
-        if iter < 1 or iter > 1000:
+        if iter <= 1 or iter >= 1000:
             print("Invalid maximum iteration!")
             exit(1)
     try:
@@ -126,14 +127,10 @@ if __name__ == "__main__":
     if k > len(data):
         print("Invalid number of clusters!")
         exit(1)
-
     centroids, indices = choose_centroids(data, k)
-
     initial_centroids = [c.vector for c in centroids]
     all_points = [p.vector for p in data]
-    print(len(all_points))
     final_centroids = mykmeanssp.fit(k, iter, data, centroids, data[0].dimention, eps, centroid, datapoint)
-    # &k, &iter, &py_data, &py_clusters, &dimention, &epsilon, &py_centroid_class, &py_datapoint_class
     # Print indices of initial centroids
     print(",".join(map(str, indices)))
 
